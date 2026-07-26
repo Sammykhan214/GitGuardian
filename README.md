@@ -1,266 +1,179 @@
-# \# GitGuardian
+# GitGuardian
 
-# 
+**A demo project to enforce pull‑request workflows, branch discipline, and automatic version management in a team codebase.**
 
-# \*\*A demo project to enforce pull-request workflows and branch discipline in a team codebase.\*\*
+---
 
-# 
+## 🚨 The Problem
 
-# \---
+In many AIML (or software) teams, members push code directly to the primary branch (often `main` / `master`).  
+This leads to:
 
-# 
+- Broken builds and undetected bugs
+- No code review or knowledge sharing
+- Messy version history
+- No clear way to track which changes were approved or released
 
-# \## 🚨 The Problem
+---
 
-# 
+## 🛡️ What GitGuardian Does
 
-# In many AIML (or software) teams, members often push code directly to the `master` branch without review.  
+GitGuardian is a fully automated system that:
 
-# This leads to:
+- **Blocks direct pushes** to `main` using GitHub branch protection rules.
+- **Requires all changes to come through Pull Requests** from named branches (`feature/*`, `bugfix/*`, `hotfix/*`).
+- **Enforces branch naming conventions** with a custom GitHub Actions check.
+- **Detects any direct push attempt** (even by admins) and automatically creates a GitHub issue flagging the violation.
+- **Automatically bumps project versions** on every merge to `main`, using [Semantic Versioning](https://semver.org/).
+- **Provides a clear, reproducible demo** that can be shown to the team and adapted for real‑world repositories.
 
-# \- Broken builds and undetected bugs
+Everything is transparent, self‑documented, and ready to be cloned and tested.
 
-# \- No code review or knowledge sharing
+---
 
-# \- Messy version history
-
-# \- No way to track which changes were approved
-
-# 
-
-# \---
-
-# 
-
-# \## 🛡️ What GitGuardian Does
-
-# 
-
-# GitGuardian is a fully automated system that:
-
-# 
-
-# \- \*\*Blocks direct pushes\*\* to `master` using GitHub branch protection rules.
-
-# \- \*\*Requires all changes to come through Pull Requests\*\* from named branches (`feature/\*`, `bugfix/\*`, `hotfix/\*`).
-
-# \- \*\*Enforces branch naming conventions\*\* with a custom CI check (GitHub Actions).
-
-# \- \*\*Detects any direct push attempt\*\* (even by admins) and automatically creates an issue flagging the violation.
-
-# \- \*\*Provides a clear, reproducible demo\*\* that can be shown to the team and adapted for a real production repository.
-
-# 
-
-# Everything is transparent, self‑documented, and ready to be cloned and tested.
-
-# 
-
-# \---
-
-# 
-
-# \## 📁 Repository Structure
-
-
-
+## 📁 Repository Structure
 GitGuardian/
-
-├── p1/src/train.py # Simulated ML training module
-
-├── p2/src/evaluate.py # Evaluation placeholder
-
-├── p3/src/preprocess.py # Data preprocessing stub
-
-├── p4/src/utils.py # Utility functions (loader)
-
-├── p5/src/model.py # ML model class
-
-├── requirements.txt
-
 ├── .github/
-
-│ └── workflows/
-
-│ ├── enforcer-push-check.yml # Direct push detector
-
-│ └── enforcer-branch-naming.yml # Branch name enforcer
-
-└── docs/
-
-├── branch-protection-settings.png # Screenshot of protection rule
-
-└── test-scenario.md # Step-by-step test plan
-
-
-
-
-
-The `p1`–`p5` folders simulate a monorepo where different team members own different components.
-
-
-
-\---
-
-
-
-\## 🔧 How It Works
-
-
-
-\### 1. Branch Protection (The Iron Wall)
-
-\- Applied on `master` via GitHub \*\*Settings → Branches\*\*.
-
-\- \*\*Require a pull request before merging\*\* – no direct pushes.
-
-\- \*\*Require approvals (≥1)\*\* – at least one reviewer must approve.
-
-\- \*\*Restrict who can push\*\* – only the team lead (and optionally a manager) can push directly (for emergencies).
-
-\- Any associate who tries `git push origin master` gets a `403` error.
+│ ├── workflows/
+│ │ ├── enforcer-push-check.yml # Detects direct pushes to main
+│ │ ├── enforcer-branch-naming.yml # Validates branch naming convention
+│ │ └── version-bump.yml # Automatically bumps version on merge
+│ └── (optional) CODEOWNERS, PULL_REQUEST_TEMPLATE.md
+│
+├── p1/ # Example: ATO_fraud_detection
+│ ├── VERSION # Contains "0.1.0" (SemVer)
+│ └── src/
+│ └── train.py
+│
+├── p2/ # Example: Model_drift_detection
+│ ├── VERSION
+│ └── src/
+│ └── evaluate.py
+│
+├── p3/ # Example: Data_preprocessing
+│ ├── VERSION
+│ └── src/
+│ └── preprocess.py
+│
+├── p4/ # Example: Utils
+│ ├── VERSION
+│ └── src/
+│ └── utils.py
+│
+├── p5/ # Example: Core_ML_model
+│ ├── VERSION
+│ └── src/
+│ └── model.py
+│
+├── docs/
+│ ├── branch-protection-settings.png # Screenshot of GitHub branch protection
+│ └── test-scenario.md # Step-by-step demo test plan
+│
+├── .gitignore # Python gitignore
+├── requirements.txt # Project dependencies (numpy)
+└── README.md # This file
 
 
+---
 
-\### 2. Custom GitHub Actions (The Watchdog)
+## 🔧 How It Works
+
+### 1. Branch Protection (The Iron Wall)
+
+Applied on the `main` branch via **Settings → Branches**:
+
+- ✅ **Require a pull request before merging** – no direct pushes allowed.
+- ✅ **Require approvals (≥ 1)** – at least one reviewer must sign off.
+- ✅ **Dismiss stale pull request approvals when new commits are pushed** – keeps reviews meaningful.
+- ✅ **Restrict who can push to matching branches** – only the team lead (and optionally CI bots) can push directly.
+
+Any associate who tries `git push origin main` gets a `403` error.
+
+### 2. Custom GitHub Actions (The Watchdog)
 
 Even with branch protection, we added two safety nets:
 
+#### 📛 Direct Push Detector (`enforcer-push-check.yml`)
 
+- **Triggers:** on push to `main`.
+- **Check:** examines the commit message. Merged PRs always start with `"Merge pull request #..."`.
+- **If a direct commit is detected:** creates a GitHub issue tagging the pusher, and fails the workflow.
+- **Purpose:** if an admin temporarily bypasses the rules, this acts as a loud alarm.
 
-\#### 📛 Direct Push Detector
+#### 📋 Branch Naming Convention Check (`enforcer-branch-naming.yml`)
 
-\- \*\*Triggers:\*\* On every push to `master`.
+- **Triggers:** on every PR (`opened`, `synchronize`, `reopened`).
+- **Check:** validates that the source branch name starts with `feature/`, `bugfix/`, or `hotfix/`.
+- **If invalid:** the CI check fails, preventing the merge (if status checks are required).
+- **Purpose:** keeps the repository organised and makes the purpose of every branch instantly clear.
 
-\- \*\*Check:\*\* Examines the commit message. Merged PRs always start with `"Merge pull request #..."`.
+### 3. Automatic Version Bumping (`version-bump.yml`)
 
-\- \*\*If a direct commit (non‑merge) is detected\*\* → creates a GitHub issue tagging the pusher, and fails the workflow.
+Every time a pull request is **merged to `main`**, the workflow:
 
-\- \*\*Why?\*\* If an admin temporarily bypasses the rules, this acts as a loud alarm.
+1. Detects which project folders (`p1`–`p5`) were changed.
+2. Reads the current version from `VERSION` (e.g., `0.1.0`).
+3. Bumps the **patch** number by default (`0.1.0` → `0.1.1`).
+4. If the merge commit contains a keyword, it bumps major or minor instead:
+   - `[p1:major]` → `1.0.0`
+   - `[p2:minor]` → `0.2.0`
+5. Commits the updated `VERSION` file and creates a Git tag (e.g., `p1/v0.1.1`).
 
+This ensures every merged change is traceable and every project’s release is automatically versioned.
 
+---
 
-\#### 📋 Branch Naming Convention Check
+## 🧪 Demo – Test It Yourself
 
-\- \*\*Triggers:\*\* On every PR (`opened`, `synchronize`, `reopened`).
+1. **Clone the repo** and give a teammate (or a second GitHub account) write access (but do **not** add them to the push allowlist).
+2. **Try a direct push to `main`** – it should be rejected.
+3. **Create a branch with a wrong name** (e.g., `johns-fix`) and open a PR – the branch name check will fail.
+4. **Temporarily remove the push restriction** (or comment it out), commit directly to `main`, and watch the direct‑push detector create an issue tagging you.
+5. **Make a real change via a proper feature branch** (e.g., `feature/update-fraud-model`), open a PR, and merge it – the version bump will automatically increment the project’s version.
 
-\- \*\*Check:\*\* Validates that the source branch name starts with `feature/`, `bugfix/`, or `hotfix/`.
+Full step‑by‑step test plan is available in [`docs/test-scenario.md`](docs/test-scenario.md).
 
-\- \*\*If invalid\*\* → the CI check fails and prevents merging (if status checks are required).
+---
 
-\- \*\*Why?\*\* Keeps the repository organised and makes it easy to see the purpose of each branch.
+## 🚀 Setting Up in Your Own Team’s Repo
 
+1. Go to **Settings → Branches** and add a protection rule for `main` (or your default branch).
+2. Enable **Require a pull request before merging** and **Require approvals**.
+3. Restrict push access to only team leads / CI bots.
+4. Copy the `.github/workflows/` folder into your repository.
+5. Add the **enforcer-branch-naming** job as a required status check in the branch protection rule.
+6. (Optional) Customise the allowed branch prefixes in `enforcer-branch-naming.yml`.
+7. Add a `VERSION` file to each project/module you want to track.
 
+---
 
-\---
+## 🧰 Tech Stack
 
+- **Python** (dummy AIML scripts)
+- **GitHub Actions** (YAML workflows)
+- **GitHub API** (issue creation via `gh` CLI)
+- **Markdown** (documentation)
 
+---
 
-\## 🧪 Demo – Test It Yourself
+## 📸 Screenshot
 
+![Branch protection settings](docs/branch-protection-settings.png)
 
+---
 
-1\. \*\*Clone the repo\*\* (or ask a teammate to do it with write access).
+## 🤝 Contributing
 
-2\. \*\*Try to push directly to `master`\*\* – it should be rejected.
+All changes must go through a Pull Request with a properly named branch (`feature/`, `bugfix/`, `hotfix/`).  
+At least one review is required before merging into `main`.  
+Yes, even this repository follows its own rules! 😄
 
-3\. \*\*Create a branch with a wrong name\*\* (e.g. `johns-fix`) and open a PR – the branch name check will fail.
+---
 
-4\. \*\*Temporarily lift the push restriction for yourself\*\*, commit directly to `master`, and watch the direct‑push detector create an issue.
-
-
-
-Full step‑by‑step test plan is available in \[`docs/test-scenario.md`](docs/test-scenario.md).
-
-
-
-\---
-
-
-
-\## 🚀 Setting Up in Your Own Team’s Repo
-
-
-
-To adapt this for a real project:
-
-
-
-1\. Go to \*\*Settings → Branches\*\* and add a rule for your default branch (`master` or `main`).
-
-2\. Enable \*\*Require a pull request before merging\*\* and \*\*Require approvals\*\*.
-
-3\. Restrict push access to only team leads / CI bots.
-
-4\. Copy the `.github/workflows/` folder into your repository.
-
-5\. Add the branch name check as a \*\*required status check\*\* in the branch protection rule.
-
-6\. (Optional) Customise the allowed branch prefixes in `enforcer-branch-naming.yml`.
-
-
-
-\---
-
-
-
-\## 🧰 Tech Stack
-
-
-
-\- \*\*Python\*\* (dummy AIML scripts, no real dependencies)
-
-\- \*\*GitHub Actions\*\* (YAML workflows)
-
-\- \*\*GitHub API\*\* (issue creation via `gh` CLI)
-
-\- \*\*Markdown\*\* (documentation)
-
-
-
-\---
-
-
-
-\## 📸 Screenshot
-
-
-
-!\[Branch protection settings](docs/branch-protection-settings.png)
-
-
-
-\---
-
-
-
-\## 📝 License
-
-
+## 📝 License
 
 MIT – feel free to use and adapt for your own team.
 
+---
 
-
-\---
-
-
-
-\## 🤝 Contributing
-
-
-
-All changes must go through a Pull Request with a properly named branch (`feature/`, `bugfix/`, `hotfix/`).  
-
-At least one review is required before merging into `master`.  
-
-Yes, even this repo follows its own rules! 😄
-
-
-
-\---
-
-
-
-\*Built with ❤️ for teams that care about clean version control.\*
-
+*Built with ❤️ for teams that care about clean version control and automated release management.*
